@@ -36,19 +36,15 @@ async def select(sql, args, size = None):
     log(sql, args)
     global __pool
     async with __pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            if 0:
-                if args == None:
-                    args = ()
-                else:
-                    print('args有值')
-            await cur.execute(sql.replace('?','%s'),args)
-            results = await cur.fetchall()
-            print(results)
-            print(type(results))
-
-            await cur.close() #尝试加的
-
+        async with conn.cursor(aiomysql.DictCursor) as cur: # 打开一个DictCursor,它与普通游标的不同在于,以dict形式返回结果
+            await cur.execute(sql.replace('?', '%s'), args or ())
+            if size:
+                rs = await cur.fetchall(size)
+            else:
+                rs = await cur.fetchall()
+            logging.info('row returned: %s' %len(rs))
+            await cur.close()
+            return rs
 
 # Insert, Update, Delete 统一函数
 async def execute(sql, args, autocommit=True):
@@ -76,8 +72,6 @@ async def execute(sql, args, autocommit=True):
 #             await cur.execute(sql.replace('?','%s'),args or ())
 #             rowCount = cur.rowcount
 #             print(rowCount)
-
-
 
 #创建拥有几个占位符的字符串
 def create_args_string(num):
@@ -126,12 +120,12 @@ class ModelMetaclass(type):
         for k in mappings.keys():
             attrs.pop(k)
         escaped_fields = list(map(lambda f: '`%s`' % f, fields))
-        attrs['__mappings__'] = mappings # 保存属性和列的映射关系
+        attrs['__mappings__'] = mappings  # 保存属性和列的映射关系
         attrs['__table__'] = tableName
-        attrs['__primary_key__'] = primaryKey # 主键属性名
-        attrs['__fields__'] = fields # 除主键外的属性名
+        attrs['__primary_key__'] = primaryKey  # 主键属性名
+        attrs['__fields__'] = fields  # 除主键外的属性名
         # 构造默认的SELECT, INSERT, UPDATE和DELETE语句：
-        attrs['__select__'] = 'select `%s`, %s from `%s`' %(primaryKey, ', '.join(escaped_fields), tableName)
+        attrs['__select__'] = 'select `%s`, %s from `%s`' % (primaryKey, ', '.join(escaped_fields), tableName)
         attrs['__insert__'] = 'insert into `%s` (%s, `%s`) values (%s)' % (tableName, ', '.join(escaped_fields), primaryKey, create_args_string(len(escaped_fields) + 1))
         attrs['__update__'] = 'update `%s` set %s where `%s`=?' % (tableName, ', '.join(map(lambda f: '`%s`=?' % (mappings.get(f).name or f), fields)), primaryKey)
         attrs['__delete__'] = 'delete from `%s` where `%s`=?' % (tableName, primaryKey)
@@ -141,7 +135,6 @@ class ModelMetaclass(type):
 # 1. 定义所有ORM映射的基类；
 # 这是模型的基类,继承于dict,主要作用就是如果通过点语法来访问对象的属性获取不到的话,可以定制__getattr__来通过key来再次获取字典里的值
 class Model(dict, metaclass=ModelMetaclass):
-
     def __init__(self, **kw):
         super(Model, self).__init__(**kw)
 
@@ -168,10 +161,9 @@ class Model(dict, metaclass=ModelMetaclass):
         return value
 
     # 5. 往Model类添加实例方法，就可以让所有子类调用实例方法：
-    # 直接复制 https://github.com/michaelliao/awesome-python3-webapp/blob/day-03/www/orm.py
+    # 复制 https://github.com/michaelliao/awesome-python3-webapp/blob/day-03/www/orm.py
     @classmethod
     async def findAll(cls, where=None, args=None, **kw):
-        ' find objects by where clause. '
         sql = [cls.__select__]
         if where:
             sql.append('where')
@@ -183,18 +175,19 @@ class Model(dict, metaclass=ModelMetaclass):
             sql.append('order by')
             sql.append(orderBy)
         limit = kw.get('limit', None)
-        if limit is not None:
+        if limit:
             sql.append('limit')
             if isinstance(limit, int):
                 sql.append('?')
                 args.append(limit)
             elif isinstance(limit, tuple) and len(limit) == 2:
                 sql.append('?, ?')
-                args.extend(limit)
+                args.extend(limit)  # tuple融入list
             else:
                 raise ValueError('Invalid limit value: %s' % str(limit))
         rs = await select(' '.join(sql), args)
-        return [cls(**r) for r in rs]
+        return [cls(**r) for r in rs]  # 调试的时候尝试了一下return rs，输出结果一样
+        # return rs
 
     @classmethod
     async def findNumber(cls, selectField, where=None, args=None):
@@ -208,10 +201,18 @@ class Model(dict, metaclass=ModelMetaclass):
             return None
         return rs[0]['_num_']
 
+    # @classmethod
+    # async def find(cls, pk):
+    #     ' find object by primary key. '
+    #     rs = await select('%s where `%s`=?' % (cls.__select__, cls.__primary_key__), [pk], 1)
+    #     if len(rs) == 0:
+    #         return None
+    #     return cls(**rs[0])
     @classmethod
-    async def find(cls, pk):
+    @asyncio.coroutine
+    def find(cls, pk):
         ' find object by primary key. '
-        rs = await select('%s where `%s`=?' % (cls.__select__, cls.__primary_key__), [pk], 1)
+        rs = yield from select('%s where `%s`=?' % (cls.__select__, cls.__primary_key__), [pk], 1)
         if len(rs) == 0:
             return None
         return cls(**rs[0])
@@ -272,11 +273,11 @@ class TextField(Field):
 
 
 #以下为测试
-loop = asyncio.get_event_loop()
-loop.run_until_complete(create_pool(host='127.0.0.1', port=3306, user='root', password='admin',db='awesome', loop=loop))
-rs = loop.run_until_complete(select('select * from users',None))
+# loop = asyncio.get_event_loop()
+# loop.run_until_complete(create_pool(host='127.0.0.1', port=3306, user='root', password='admin',db='awesome', loop=loop))
+# rs = loop.run_until_complete(select('select * from users',None))
 #获取到了数据库返回的数据
-print("heh:%s" % rs)
+# print("heh:%s" % rs)
 
 
 

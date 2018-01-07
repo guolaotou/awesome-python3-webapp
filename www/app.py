@@ -125,14 +125,15 @@ def datetime_filter(t):
 # loop.run_until_complete(init(loop))
 # loop.run_forever()
 
-# day5测试
+# day5测试 day8测试
 async def init(loop):
     await orm.create_pool(loop=loop, host='127.0.0.1', port=3306, user='root', password='admin', db='awesome')
     app = web.Application(loop=loop, middlewares=[
         logger_factory, response_factory
     ])
     init_jinja2(app, filters=dict(datetime=datetime_filter))
-    add_routes(app, 'test-of-day5-01')
+    # add_routes(app, 'test-of-day5-01')
+    add_routes(app, 'handlers')
     add_static(app)
     srv = await loop.create_server(app.make_handler(), '127.0.0.1', 9000)
     logging.info('server started at http://127.0.0.1:9000...')
