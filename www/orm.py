@@ -39,7 +39,7 @@ async def select(sql, args, size = None):
         async with conn.cursor(aiomysql.DictCursor) as cur: # 打开一个DictCursor,它与普通游标的不同在于,以dict形式返回结果
             await cur.execute(sql.replace('?', '%s'), args or ())
             if size:
-                rs = await cur.fetchall(size)
+                rs = await cur.fetchmany(size)
             else:
                 rs = await cur.fetchall()
             logging.info('row returned: %s' %len(rs))
