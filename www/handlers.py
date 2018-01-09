@@ -52,6 +52,10 @@ async def index(request):
 COOKIE_NAME = 'awesession'#用来在set_cookie中命名
 _COOKIE_KEY = configs['session']['secret']#导入默认设置
 
+
+#------------------------------------------------FUNCTION-------------------------------------------------------
+
+
 # 检测是否登录且是否是管理员
 def check_admin(request):
     if request.__user__ is None or not request.__user__.admin:
@@ -95,6 +99,40 @@ async def cookie2user(cookie_str):
         logging.exception(e)
         return None
 
+# 选择页面
+def get_page_index(page_str):
+    p = 1
+    try:
+        p = int(page_str)
+    except ValueError as e:
+        pass
+    if p < 1:
+        p = 1
+    return p
+
+# 定义选取数量
+class Page(object):
+    def __init__(self, item_count, page_index = 1, page_size = 10): #参数依次是：数据库博客总数，初始页，一页显示博客数
+        self.item_count = item_count
+        self.page_size = page_size
+        self.page_count = item_count //page_size + (1 if item_count % page_size > 0 else 0)
+        if (item_count == 0) or (page_index > self.page_count):
+            self.offset = 0
+            self.limit = 0
+            self.page_index = 1
+        else:
+            self.page_index = page_index # 初始页
+            self.offset = self.page_size * (page_index - 1)
+            self.limit = self.page_size
+        self.has_next = self.page_index < self.page_count # 是否有下一页
+        self.has_previous = self.page_index > 1 # 是否有上一页
+    def __str__(self):
+        return 'item_count: %s, page_count: %s, page_index: %s, page_size: %s, offset: %s, limit: %s' % (self.item_count, self.page_count, self.page_index, self.page_size, self.offset, self.limit)
+
+    __repr__ = __str__
+
+
+#------------------------------------------------映射页面--------------------------------------------------------
 
 # 显示注册页面
 @get('/register')
@@ -103,6 +141,30 @@ async def register():
         '__template__': 'register.html'
     }
 
+# 显示登录页面
+@get('/signin')
+async def signin():
+    return {
+        '__template__': 'signin.html'
+    }
+
+# 显示创建博客页面
+@get('/manage/blogs/create')
+async def manage_create_blog(request):
+    return{
+        '__template__': 'manage_blog_edit.html',
+        'id': '',
+        'action': '/api/blogs',
+        '__user__': request.__user__
+    }
+
+@get('/manage/blogs')
+async def manage_blogs(*, page='1'):
+    return{
+        '__template__':'manage_blogs.html',
+        'page_index': get_page_index(page)
+    }
+#--------------------------------------------------API----------------------------------------------------------
 
 # 注册接口
 @post('/api/users')
@@ -132,14 +194,6 @@ async def api_register_user(*,name,email,passwd):
     r.body = json.dumps(user, ensure_ascii=False).encode('utf-8')
     return r
 
-# 登录相关
-# 显示登录页面
-@get('/signin')
-async def signin():
-    return {
-        '__template__': 'signin.html'
-    }
-
 # 验证登录信息接口
 @post('/api/authenticate')
 async def authenticate(*,email,passwd):
@@ -167,15 +221,6 @@ async def authenticate(*,email,passwd):
     r.content_type = "application/json"
     r.body = json.dumps(user, ensure_ascii=False).encode("utf-8")
     return r
-# 显示创建博客页面
-@get('/manage/blogs/create')
-def manage_create_blog(request):
-    return{
-        '__template__': 'manage_blog_edit.html',
-        'id': '',
-        'action': '/api/blogs',
-        '__user__': request.__user__
-    }
 
 # API: 查看博客 by id
 @get('/api/blogs/{id}')
@@ -197,7 +242,16 @@ async def api_create_blog(request, *, name, summary, content):
     await blog.save()
     return blog
 
-
+#API: 获取博客（批量）
+@get('/api/blogs')
+async def api_blogs(*, page='1'):
+    page_index = get_page_index(page)
+    num = await Blog.findNumber('count(id)')#查询日志总数
+    p = Page(num, page_index)
+    if num == 0: #数据库没日志
+        return dict(page=p, blogs=())
+    blogs = await Blog.findAll(orderBy='created_at desc', limit=(p.offset, p.limit)) #选取对应的日志
+    return dict(page=p, blogs=blogs)#返回管理页面信息，及显示日志数
 
 
 
