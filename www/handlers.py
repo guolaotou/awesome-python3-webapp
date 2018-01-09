@@ -48,6 +48,15 @@ async def index(request):
 
 # Day 10 编写用户注册和登录API
 
+
+COOKIE_NAME = 'awesession'#用来在set_cookie中命名
+_COOKIE_KEY = configs['session']['secret']#导入默认设置
+
+# 检测是否登录且是否是管理员
+def check_admin(request):
+    if request.__user__ is None or not request.__user__.admin:
+        raise APIPermissionError()
+
 # 制作cookie的数值，即set_cookie的value
 def user2cookie(user, max_age):
     # build cookie string by: id-expires-sha1（id-到期时间-摘要算法）
@@ -94,8 +103,6 @@ async def register():
         '__template__': 'register.html'
     }
 
-COOKIE_NAME = 'awesession'#用来在set_cookie中命名
-_COOKIE_KEY = configs['session']['secret']#导入默认设置
 
 # 注册接口
 @post('/api/users')
@@ -160,9 +167,35 @@ async def authenticate(*,email,passwd):
     r.content_type = "application/json"
     r.body = json.dumps(user, ensure_ascii=False).encode("utf-8")
     return r
+# 显示创建博客页面
+@get('/manage/blogs/create')
+def manage_create_blog(request):
+    return{
+        '__template__': 'manage_blog_edit.html',
+        'id': '',
+        'action': '/api/blogs',
+        '__user__': request.__user__
+    }
 
+# API: 查看博客 by id
+@get('/api/blogs/{id}')
+async def api_get_blog(*, id):
+    blog = await Blog.find(id)
+    return blog
 
-
+#API: 创建博客
+@post('/api/blogs')
+async def api_create_blog(request, *, name, summary, content):
+    check_admin(request)
+    if not name or not name.strip():
+        raise APIValueError('name', 'Name cannot be empty.')
+    if not summary or not summary.strip():
+        raise APIValueError('summary', 'Summary cannot be empty.')
+    if not content or not content.strip():
+        raise APIValueError('content', 'Content cannot be empty.')
+    blog = Blog(user_id = request.__user__.id, user_name = request.__user__.name, user_image = request.__user__.image, name = name.strip(), summary = summary.strip(), content = content.strip())
+    await blog.save()
+    return blog
 
 
 
