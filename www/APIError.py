@@ -34,7 +34,7 @@ class APIResourceNotfoundError(APIError):
     表明找不到资源，data说明资源名字
     '''
     def __init__(self,field,message = ''):
-        super(APIResourceNotFoundError,self).__init__('Value: Notfound',field,message)
+        super(APIResourceNotfoundError,self).__init__('Value: Notfound',field,message)
 
 class APIPermissionError(APIError):
     '''

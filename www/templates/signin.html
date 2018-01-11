@@ -1,44 +1,46 @@
 <!DOCTYPE html>
 <html class="uk-height-1-1">
-    <head>>
-        <meta charset="utf-8">
-        <title>登录 - Awesome Python Webapp</title>
-        <link rel="stylesheet" href="/static/css/uikit.min.css">
-        <link rel="stylesheet" href="/static/css/uikit.gradient.min.css">
-        <script src="/static/js/jquery.min.js"></script>
-        <script src="/static/js/sha1.min.js"></script>
-        <script src="/static/js/uikit.min.js"></script>
-        <script src="/static/js/vue.min.js"></script>
-        <script src="/static/js/awesome.js"></script>
-        <script>
-        $(function(){
-            var vmAuth = new Vue({
-                el: '#vm',
-                data:{
-                    email:'',
-                    passwd:''
-                },
-                methods:{
-                    submit: function(event){
-                        event.preventDefault();
-                        var
-                            $form = $('#vm'),
-                            email = this.email.trim().toLowerCase(),
-                            data = {
-                                email: email,
-                                passwd: this.passwd === '' ? '' : CryptoJS.SHA1(email + ':' + this.passwd).toString()
-                            }
-                        $form.postJSON('/api/authenticate', data, function(err, result){
-                            if(!err){
-                                location.assign('/');
-                            }
-                        })
+<head>
+    <meta charset="utf-8" />
+    <title>登录 - Awesome Python Webapp</title>
+    <link rel="stylesheet" href="/static/css/uikit.min.css">
+    <link rel="stylesheet" href="/static/css/uikit.gradient.min.css">
+    <script src="/static/js/jquery.min.js"></script>
+    <script src="/static/js/sha1.min.js"></script>
+    <script src="/static/js/uikit.min.js"></script>
+    <script src="/static/js/vue.min.js"></script>
+    <script src="/static/js/awesome.js"></script>
+    <script>
+
+$(function() {
+    var vmAuth = new Vue({
+        el: '#vm',
+        data: {
+            email: '',
+            passwd: ''
+        },
+        methods: {
+            submit: function(event) {
+                event.preventDefault();
+                var
+                    $form = $('#vm'),
+                    email = this.email.trim().toLowerCase(),
+                    data = {
+                        email: email,
+                        passwd: this.passwd==='' ? '' : CryptoJS.SHA1(email + ':' + this.passwd).toString()
+                    };
+                $form.postJSON('/api/authenticate', data, function(err, result) {
+                    if (! err) {
+                        location.assign('/');
                     }
-                }
-            })
-        })
-        </script>
-    </head>
+                });
+            }
+        }
+    });
+});
+
+    </script>
+</head>
 <body class="uk-height-1-1">
     <div class="uk-vertical-align uk-text-center uk-height-1-1">
         <div class="uk-vertical-align-middle" style="width: 320px">

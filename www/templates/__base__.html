@@ -1,4 +1,22 @@
 <!DOCTYPE html>
+<!--
+{% macro pagination(url, page) %}
+    <ul class="uk-pagination">
+        {% if page.has_previous %}
+            <li><a href="{{ url }}{{ page.page_index - 1 }}"><i class="uk-icon-angle-double-left"></i></a></li>
+        {% else %}
+            <li class="uk-disabled"><span><i class="uk-icon-angle-double-left"></i></span></li>
+        {% endif %}
+            <li class="uk-active"><span>{{ page.page_index }}</span></li>
+        {% if page.has_next %}
+            <li><a href="{{ url }}{{ page.page_index + 1 }}"><i class="uk-icon-angle-double-right"></i></a></li>
+        {% else %}
+            <li class="uk-disabled"><span><i class="uk-icon-angle-double-right"></i></span></li>
+        {% endif %}
+    </ul>
+{% endmacro %}
+-->
+<!--上面这段是分页代码，并不是注释-->
 <html>
 <head>
     <meta charset="utf-8" />
@@ -20,9 +38,19 @@
       <div class="uk-container uk-container-center">
           <a href="/" class="uk-navbar-brand">Awesome</a>
           <ul class="uk-navbar-nav">
-              <li data-url="blogs"><a href="/"><i class="uk-icon-home"></i> 日志</a></li>
+              <li data-url="blogs"><a href="/"><i class="uk-icon-home"></i> 博客</a></li>
               <li><a target="_blank" href="http://www.liaoxuefeng.com/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000"><i class="uk-icon-book"></i> 教程</a></li>
               <li><a target="_blank" href="https://github.com/michaelliao/awesome-python3-webapp"><i class="uk-icon-code"></i> 源码</a></li>
+              <li>
+                  {% if __user__ %}
+                      {% if __user__.admin %}
+                          <li class="uk-parent" data-uk-dropdown>
+                              <a href="/manage/blogs"><i class="uk-icon-home"></i>管理端</a></a>
+                      
+                         </li>
+                      {% endif %}
+                  {% endif %}
+              </li>
           </ul>
           <div class="uk-navbar-flip">
               <ul class="uk-navbar-nav">
